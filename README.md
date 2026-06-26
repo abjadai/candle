@@ -6,6 +6,25 @@ The model uses a CTC (Connectionist Temporal Classification) objective and is tr
 
 ---
 
+## How to Run?
+### Run Using `candle-deduplicator` Package
+You can easily install CANDLE models as a packge using `pip` as follows:
+```bash
+pip install candle-deduplicator
+```
+Then, you can import the classes and use them directly. Here is an example:
+```python
+from candle_deduplicator import CandleDeduplicator, CandleDeduplicatorDistilled
+
+full_model = CandleDeduplicator()
+distilled_model = CandleDeduplicatorDistilled()
+print(full_model.deduplicate(' الممملكككة الأررررردنييية ررراااننيييااا'))
+# الملكة الأردنية رانيا
+print(distilled_model.deduplicate('الممملكككة الأررررردنييية الللهههااااششميية'))
+# المملكة الأردنية الهاشمية
+
+```
+
 ## How It Works
 
 Input text is first normalized by collapsing all character runs to exactly 2 repetitions (e.g. `الممملكككة` → `االلممللككةة`). This normalized form is fed into a Transformer encoder, and the CTC output is decoded greedily to produce the corrected text.
@@ -29,10 +48,10 @@ candle/
 ├── predict_cli.py            # Inference script (supports both teacher and distilled models)
 ├── compute_xer_cli.py        # CLI tool for computing WER / CER / SER across benchmark files
 ├── compute_fertility.py      # Tokenizer fertility analysis across multiple models and tokenizers
+├── export_to_onnx.py         # ONNX exporter
 ├── run_predict_cli.sh        # Example shell script for running inference
 └── run_eval.sh               # Example shell script for running evaluation
 ```
-
 ---
 
 ## Requirements
@@ -136,6 +155,39 @@ bash run_predict_cli.sh
 ```
 
 Lines longer than `max_seq_len` are automatically split on word boundaries and rejoined after inference, so the script handles arbitrarily long inputs gracefully.
+
+---
+
+## Exporting your own ONNX model
+
+If you have a trained Candle PyTorch Lightning checkpoint (`.ckpt`), you can
+export it to ONNX using the included `export_to_onnx.py` script. In the following example, you can export the original model as well as the ditilled version:
+
+```bash
+pip install onnx onnxruntime
+
+# Full 6-layer model
+python export_to_onnx.py \
+    --checkpoint best_full_model.ckpt \
+    --output full_model.onnx \
+    --validate
+
+# Distilled 2-layer model
+python export_to_onnx.py \
+    --checkpoint best_distilled_model.ckpt \
+    --output distilled_model.onnx \
+    --distilled \
+    --validate
+```
+
+The `--validate` flag runs a numerical check comparing PyTorch vs ONNX outputs.
+A max absolute difference below `1e-4` confirms a clean export.
+
+Then load the exported file locally:
+
+```python
+model = CandleDeduplicator(model_path="full_model.onnx")
+```
 
 ---
 
